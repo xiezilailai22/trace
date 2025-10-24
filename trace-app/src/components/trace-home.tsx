@@ -12,6 +12,7 @@ import {
 } from "@/utils/local-checkins";
 import type { CheckInEntry, DailySummary, StreakStats } from "@/types/check-in";
 import CheckInHeatmap from "@/components/check-in-heatmap";
+import CheckInTimeline from "@/components/check-in-timeline";
 
 interface UploadState {
   imageFile?: File;
@@ -254,6 +255,8 @@ export default function TraceHome() {
             </div>
           </form>
         </section>
+
+        <CheckInTimeline entries={entries} />
 
         <section className="flex flex-col gap-6 rounded-3xl border border-dashed border-zinc-200 bg-white/40 p-8 text-center dark:border-zinc-800 dark:bg-zinc-900/50 sm:text-left">
           <h2 className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
