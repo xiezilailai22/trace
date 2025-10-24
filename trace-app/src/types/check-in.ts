@@ -6,3 +6,10 @@ export interface CheckInEntry {
 }
 
 export const CHECK_IN_STORAGE_KEY = "trace-checkins";
+
+export interface StreakStats {
+  totalCount: number;
+  currentStreak: number;
+  longestStreak: number;
+  lastCheckInDate?: string;
+}

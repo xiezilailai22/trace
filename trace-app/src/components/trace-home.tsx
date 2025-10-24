@@ -4,8 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { addCheckIn, loadCheckIns } from "@/utils/local-checkins";
-import type { CheckInEntry } from "@/types/check-in";
+import { addCheckIn, calculateStreakStats, loadCheckIns } from "@/utils/local-checkins";
+import type { CheckInEntry, StreakStats } from "@/types/check-in";
 
 interface UploadState {
   imageFile?: File;
@@ -21,8 +21,30 @@ const upsertInitialState: UploadState = {
   isSubmitting: false,
 };
 
+interface StreakCardProps {
+  label: string;
+  value: string | number;
+  highlight?: boolean;
+}
+
+function StreakCard({ label, value, highlight }: StreakCardProps) {
+  return (
+    <div
+      className={`flex flex-col gap-2 rounded-2xl border border-zinc-200 p-5 text-center transition dark:border-zinc-700 ${highlight ? "bg-gradient-to-br from-zinc-900 to-zinc-700 text-white dark:from-zinc-100 dark:to-zinc-300 dark:text-zinc-900" : "bg-white/80 text-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300"}`}
+    >
+      <span className="text-xs font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+        {label}
+      </span>
+      <span className="text-3xl font-semibold">{value}</span>
+    </div>
+  );
+}
+
 export default function TraceHome() {
   const [entries, setEntries] = useState<CheckInEntry[]>(() => loadCheckIns());
+  const [stats, setStats] = useState<StreakStats>(() =>
+    calculateStreakStats(entries),
+  );
   const [uploadState, setUploadState] = useState<UploadState>(
     upsertInitialState,
   );
@@ -98,7 +120,11 @@ export default function TraceHome() {
       };
 
       addCheckIn(newEntry);
-      setEntries((prev) => [newEntry, ...prev]);
+      setEntries((prev) => {
+        const nextEntries = [newEntry, ...prev];
+        setStats(calculateStreakStats(nextEntries));
+        return nextEntries;
+      });
 
       setUploadState({
         note: "",
@@ -134,6 +160,12 @@ export default function TraceHome() {
         </header>
 
         <section className="grid gap-6 rounded-3xl border border-zinc-200 bg-white/80 p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
+          <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-6 dark:border-zinc-700 dark:bg-zinc-900/60 md:grid-cols-3">
+            <StreakCard label="累计打卡" value={stats.totalCount} highlight />
+            <StreakCard label="当前坚持" value={`${stats.currentStreak} 天`} />
+            <StreakCard label="最长坚持" value={`${stats.longestStreak} 天`} />
+          </div>
+
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-2">
               <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
