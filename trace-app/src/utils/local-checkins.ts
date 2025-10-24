@@ -3,6 +3,7 @@
 import {
   CHECK_IN_STORAGE_KEY,
   type CheckInEntry,
+  type DailySummary,
   type StreakStats,
 } from "@/types/check-in";
 
@@ -35,6 +36,17 @@ export function addCheckIn(entry: CheckInEntry) {
   const current = loadCheckIns();
   current.unshift(entry);
   saveCheckIns(current);
+}
+
+export function groupCheckInsByDate(entries: CheckInEntry[]): DailySummary[] {
+  const map = new Map<string, number>();
+  for (const entry of entries) {
+    const key = entry.createdAt.slice(0, 10);
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return Array.from(map.entries())
+    .map(([date, count]) => ({ date, count }))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 export function calculateStreakStats(entries: CheckInEntry[]): StreakStats {

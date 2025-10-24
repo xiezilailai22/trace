@@ -4,8 +4,14 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { addCheckIn, calculateStreakStats, loadCheckIns } from "@/utils/local-checkins";
-import type { CheckInEntry, StreakStats } from "@/types/check-in";
+import {
+  addCheckIn,
+  calculateStreakStats,
+  groupCheckInsByDate,
+  loadCheckIns,
+} from "@/utils/local-checkins";
+import type { CheckInEntry, DailySummary, StreakStats } from "@/types/check-in";
+import CheckInHeatmap from "@/components/check-in-heatmap";
 
 interface UploadState {
   imageFile?: File;
@@ -50,6 +56,10 @@ export default function TraceHome() {
   );
 
   const latestEntry = useMemo(() => entries.at(0), [entries]);
+  const dailySummaries = useMemo<DailySummary[]>(
+    () => groupCheckInsByDate(entries),
+    [entries],
+  );
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const [file] = event.target.files ?? [];
@@ -165,6 +175,8 @@ export default function TraceHome() {
             <StreakCard label="当前坚持" value={`${stats.currentStreak} 天`} />
             <StreakCard label="最长坚持" value={`${stats.longestStreak} 天`} />
           </div>
+
+          <CheckInHeatmap summaries={dailySummaries} />
 
           <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
             <div className="flex flex-col gap-2">

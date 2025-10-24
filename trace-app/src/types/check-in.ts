@@ -13,3 +13,8 @@ export interface StreakStats {
   longestStreak: number;
   lastCheckInDate?: string;
 }
+
+export interface DailySummary {
+  date: string;
+  count: number;
+}
