@@ -54,9 +54,32 @@ export default function TraceHome() {
     loadCheckIns,
     () => [],
   );
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isSuccessVisible, setIsSuccessVisible] = useState(false);
   const [uploadState, setUploadState] = useState<UploadState>(
     upsertInitialState,
   );
+
+  const resetUploadState = () =>
+    setUploadState({
+      ...upsertInitialState,
+      imageFile: undefined,
+      imagePreview: undefined,
+      error: undefined,
+      success: undefined,
+    });
+
+  const openCheckInModal = () => {
+    resetUploadState();
+    setIsDialogOpen(true);
+    setIsSuccessVisible(false);
+  };
+
+  const closeCheckInModal = () => {
+    setIsDialogOpen(false);
+    resetUploadState();
+    setIsSuccessVisible(false);
+  };
 
   const stats = useMemo<StreakStats>(
     () => calculateStreakStats(entries),
@@ -146,6 +169,10 @@ export default function TraceHome() {
         imageFile: undefined,
         imagePreview: undefined,
       });
+      setIsSuccessVisible(true);
+      setTimeout(() => {
+        closeCheckInModal();
+      }, 800);
     } catch (error) {
       console.error("保存打卡失败", error);
       setUploadState((prev) => ({
@@ -159,7 +186,7 @@ export default function TraceHome() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-zinc-50 via-white to-white px-6 pb-24 pt-24 dark:from-black dark:via-zinc-900 dark:to-black sm:px-10 lg:px-24">
       <section className="mx-auto flex w-full max-w-5xl flex-col gap-16">
-        <header className="flex flex-col gap-8 text-center sm:text-left">
+        <header className="flex flex-col gap-6 text-center sm:text-left">
           <span className="inline-flex items-center justify-center gap-2 self-center rounded-full border border-zinc-200 px-4 py-1 text-xs uppercase tracking-widest text-zinc-600 dark:border-zinc-800 dark:text-zinc-400 sm:self-start">
             Trace Platform
           </span>
@@ -170,6 +197,13 @@ export default function TraceHome() {
             选择一张今日的练习作品，写下你的心得或学习重点，点击提交即可完成打卡。
             所有内容仅本地可见，帮助你快速搭建个人练习节奏。
           </p>
+          <button
+            type="button"
+            onClick={openCheckInModal}
+            className="inline-flex items-center justify-center self-center rounded-full bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-500 px-6 py-3 text-sm font-semibold tracking-wide text-white shadow-lg transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 dark:from-zinc-100 dark:via-zinc-200 dark:to-zinc-400 dark:text-zinc-900 dark:hover:scale-105 sm:self-start"
+          >
+            打卡
+          </button>
         </header>
 
         <section className="grid gap-6 rounded-3xl border border-zinc-200 bg-white/80 p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800 dark:bg-zinc-900/70">
@@ -180,82 +214,6 @@ export default function TraceHome() {
           </div>
 
           <CheckInHeatmap summaries={dailySummaries} />
-
-          <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                上传今日图片
-              </label>
-              <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/70 p-6 text-center text-sm text-zinc-500 transition hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400 dark:hover:border-zinc-500">
-                <span>支持 JPG、PNG、WebP 等常见格式</span>
-                <span className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white dark:bg-zinc-100 dark:text-zinc-900">
-                  点击或拖拽图片到此处
-                </span>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileChange}
-                />
-              </label>
-              {uploadState.imagePreview ? (
-                <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700">
-                  <Image
-                    src={uploadState.imagePreview}
-                    alt="今日打卡预览"
-                    width={960}
-                    height={720}
-                    className="max-h-72 w-full object-cover"
-                  />
-                </div>
-              ) : latestEntry ? (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400">
-                  上次打卡时间：
-                  {new Date(latestEntry.createdAt).toLocaleString()}
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400">
-                  还没有任何打卡记录，试着上传你的第一张练习作品吧。
-                </div>
-              )}
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                今日心得（选填）
-              </label>
-              <textarea
-                name="note"
-                rows={4}
-                value={uploadState.note}
-                onChange={(event) =>
-                  setUploadState((prev) => ({
-                    ...prev,
-                    note: event.target.value,
-                    success: undefined,
-                  }))
-                }
-                placeholder="记录今天的练习目标、遇到的难题或收获"
-                className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700 shadow-sm transition focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200 dark:focus:border-zinc-500 dark:focus:ring-zinc-800"
-              />
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <button
-                type="submit"
-                disabled={uploadState.isSubmitting}
-                className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
-              >
-                {uploadState.isSubmitting ? "打卡处理中..." : "提交今日打卡"}
-              </button>
-              {uploadState.error && (
-                <span className="text-sm text-red-500">{uploadState.error}</span>
-              )}
-              {uploadState.success && (
-                <span className="text-sm text-emerald-500">{uploadState.success}</span>
-              )}
-            </div>
-          </form>
         </section>
 
         <CheckInTimeline entries={entries} />
@@ -275,6 +233,117 @@ export default function TraceHome() {
           </Link>
         </section>
       </section>
+
+      {isDialogOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            aria-hidden="true"
+            onClick={closeCheckInModal}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            className="relative z-10 w-full max-w-xl rounded-3xl border border-zinc-200 bg-white/95 p-8 shadow-2xl transition dark:border-zinc-700 dark:bg-zinc-900/90"
+          >
+            <div className="mb-6 flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                  今日打卡
+                </span>
+                <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
+                  记录你的练习瞬间
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeCheckInModal}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-transparent bg-zinc-100 text-zinc-600 transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                aria-label="关闭打卡弹窗"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form className="flex flex-col gap-6" onSubmit={handleSubmit}>
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  上传今日图片
+                </label>
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/80 p-6 text-center text-sm text-zinc-500 transition hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400 dark:hover:border-zinc-500">
+                  <span>支持 JPG、PNG、WebP 等常见格式</span>
+                  <span className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white dark:bg-zinc-100 dark:text-zinc-900">
+                    点击或拖拽图片到此处
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                  />
+                </label>
+                {uploadState.imagePreview ? (
+                  <div className="relative overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-700">
+                    <Image
+                      src={uploadState.imagePreview}
+                      alt="今日打卡预览"
+                      width={960}
+                      height={720}
+                      className="max-h-64 w-full object-cover"
+                    />
+                  </div>
+                ) : latestEntry ? (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400">
+                    上次打卡时间：
+                    {" "}
+                    {new Date(latestEntry.createdAt).toLocaleString()}
+                  </div>
+                ) : (
+                  <div className="rounded-2xl border border-zinc-200 bg-white p-4 text-sm text-zinc-500 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-400">
+                    还没有任何打卡记录，试着上传你的第一张练习作品吧。
+                  </div>
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                  今日心得（选填）
+                </label>
+                <textarea
+                  name="note"
+                  rows={4}
+                  value={uploadState.note}
+                  onChange={(event) =>
+                    setUploadState((prev) => ({
+                      ...prev,
+                      note: event.target.value,
+                      success: undefined,
+                    }))
+                  }
+                  placeholder="记录今天的练习目标、遇到的难题或收获"
+                  className="w-full rounded-2xl border border-zinc-200 bg-white px-4 py-3 text-sm text-zinc-700 shadow-sm transition focus:border-zinc-400 focus:outline-none focus:ring-2 focus:ring-zinc-200 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-200 dark:focus:border-zinc-500 dark:focus:ring-zinc-800"
+                />
+              </div>
+
+              <div className="flex flex-col gap-3">
+                <button
+                  type="submit"
+                  disabled={uploadState.isSubmitting}
+                  className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-6 py-3 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                >
+                  {uploadState.isSubmitting ? "打卡处理中..." : "提交今日打卡"}
+                </button>
+                {uploadState.error && (
+                  <span className="text-sm text-red-500">{uploadState.error}</span>
+                )}
+                {isSuccessVisible && uploadState.success && (
+                  <span className="text-sm text-emerald-500">{uploadState.success}</span>
+                )}
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
