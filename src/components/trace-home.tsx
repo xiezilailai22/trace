@@ -2,13 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useSyncExternalStore } from "react";
 
 import {
   addCheckIn,
   calculateStreakStats,
   groupCheckInsByDate,
   loadCheckIns,
+  subscribeCheckIns,
 } from "@/utils/local-checkins";
 import type { CheckInEntry, DailySummary, StreakStats } from "@/types/check-in";
 import CheckInHeatmap from "@/components/check-in-heatmap";
@@ -48,12 +49,18 @@ function StreakCard({ label, value, highlight }: StreakCardProps) {
 }
 
 export default function TraceHome() {
-  const [entries, setEntries] = useState<CheckInEntry[]>(() => loadCheckIns());
-  const [stats, setStats] = useState<StreakStats>(() =>
-    calculateStreakStats(entries),
+  const entries = useSyncExternalStore(
+    subscribeCheckIns,
+    loadCheckIns,
+    () => [],
   );
   const [uploadState, setUploadState] = useState<UploadState>(
     upsertInitialState,
+  );
+
+  const stats = useMemo<StreakStats>(
+    () => calculateStreakStats(entries),
+    [entries],
   );
 
   const latestEntry = useMemo(() => entries.at(0), [entries]);
@@ -131,11 +138,6 @@ export default function TraceHome() {
       };
 
       addCheckIn(newEntry);
-      setEntries((prev) => {
-        const nextEntries = [newEntry, ...prev];
-        setStats(calculateStreakStats(nextEntries));
-        return nextEntries;
-      });
 
       setUploadState({
         note: "",

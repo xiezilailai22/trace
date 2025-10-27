@@ -7,26 +7,71 @@ import {
   type StreakStats,
 } from "@/types/check-in";
 
+type CheckInListener = () => void;
+
+const listeners = new Set<CheckInListener>();
+let cachedEntries: CheckInEntry[] | undefined;
+
+function notifyListeners() {
+  for (const listener of listeners) {
+    listener();
+  }
+}
+
+export function subscribeCheckIns(listener: CheckInListener) {
+  listeners.add(listener);
+
+  if (typeof window === "undefined") {
+    return () => {
+      listeners.delete(listener);
+    };
+  }
+
+  const storageHandler = (event: StorageEvent) => {
+    if (event.key === CHECK_IN_STORAGE_KEY) {
+      listener();
+    }
+  };
+
+  window.addEventListener("storage", storageHandler);
+
+  return () => {
+    window.removeEventListener("storage", storageHandler);
+    listeners.delete(listener);
+  };
+}
+
 export function loadCheckIns(): CheckInEntry[] {
-  if (typeof window === "undefined") return [];
+  if (cachedEntries) return cachedEntries;
+  if (typeof window === "undefined") {
+    cachedEntries = [];
+    return cachedEntries;
+  }
   try {
     const raw = window.localStorage.getItem(CHECK_IN_STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      cachedEntries = [];
+      return cachedEntries;
+    }
     const parsed = JSON.parse(raw) as CheckInEntry[];
-    return parsed;
+    cachedEntries = parsed;
+    return cachedEntries;
   } catch (error) {
     console.error("Failed to parse check-in data", error);
-    return [];
+    cachedEntries = [];
+    return cachedEntries;
   }
 }
 
 export function saveCheckIns(entries: CheckInEntry[]) {
   if (typeof window === "undefined") return;
   try {
+    cachedEntries = entries;
     window.localStorage.setItem(
       CHECK_IN_STORAGE_KEY,
       JSON.stringify(entries),
     );
+    notifyListeners();
   } catch (error) {
     console.error("Failed to save check-in data", error);
   }
@@ -34,8 +79,8 @@ export function saveCheckIns(entries: CheckInEntry[]) {
 
 export function addCheckIn(entry: CheckInEntry) {
   const current = loadCheckIns();
-  current.unshift(entry);
-  saveCheckIns(current);
+  const updated = [entry, ...current];
+  saveCheckIns(updated);
 }
 
 export function groupCheckInsByDate(entries: CheckInEntry[]): DailySummary[] {

@@ -22,6 +22,7 @@
 - 组件使用 PascalCase 命名
 - 文件使用 kebab-case 命名
 - 优先使用函数组件和 Hooks
+- 重点功能需要有必要的注释
 
 ## Testing Guidelines
 - 测试框架：Vitest + React Testing Library
