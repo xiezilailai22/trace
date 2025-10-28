@@ -342,6 +342,8 @@ function MonthLabels({ markers, weekCount }: { markers: MonthMarker[]; weekCount
     return null;
   }
 
+  const maxLeft = weekCount * CELL_WITH_GAP;
+
   return (
     <div className="flex items-center gap-2">
       <div aria-hidden="true" style={{ width: `${DAY_LABEL_COLUMN_WIDTH}px` }} />
@@ -349,15 +351,20 @@ function MonthLabels({ markers, weekCount }: { markers: MonthMarker[]; weekCount
         className="relative h-4 text-[10px] font-medium text-zinc-400 dark:text-zinc-500"
         style={{ width: `${weekCount * CELL_WITH_GAP}px` }}
       >
-        {markers.map((marker) => (
-          <span
-            key={`${marker.label}-${marker.columnIndex}`}
-            className="absolute whitespace-nowrap"
-            style={{ left: `${marker.columnIndex * CELL_WITH_GAP}px` }}
-          >
-            {marker.label}
-          </span>
-        ))}
+        {markers.map((marker) => {
+          const rawLeft = marker.columnIndex * CELL_WITH_GAP + CELL_WITH_GAP / 2;
+          const clampedLeft = Math.min(Math.max(rawLeft, CELL_WITH_GAP / 2), maxLeft);
+
+          return (
+            <span
+              key={`${marker.label}-${marker.columnIndex}`}
+              className="absolute whitespace-nowrap px-1.5 text-center transform -translate-x-1/2"
+              style={{ left: clampedLeft }}
+            >
+              {marker.label}
+            </span>
+          );
+        })}
       </div>
     </div>
   );
