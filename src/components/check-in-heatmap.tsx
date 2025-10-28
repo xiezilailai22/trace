@@ -13,6 +13,7 @@ interface DayCell {
   iso: string;
   count: number;
   isFuture: boolean;
+  isPadding: boolean;
 }
 
 interface MonthMarker {
@@ -48,20 +49,35 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
 
   const isYearSelected = selectedYear !== null;
 
-  const currentSummaries = useMemo(() => {
+  const { displayStart, displayEnd, currentSummaries } = useMemo(() => {
     if (isYearSelected && selectedYear) {
-      return summariesByYear.get(selectedYear) ?? [];
+      const yearStart = new Date(selectedYear, 0, 1);
+      const yearEnd = new Date(selectedYear, 11, 31);
+      yearStart.setHours(0, 0, 0, 0);
+      yearEnd.setHours(0, 0, 0, 0);
+
+      return {
+        displayStart: yearStart,
+        displayEnd: yearEnd,
+        currentSummaries: summariesByYear.get(selectedYear) ?? [],
+      };
     }
 
-    const cutoffDate = new Date();
-    cutoffDate.setHours(0, 0, 0, 0);
-    const startDate = new Date(cutoffDate);
-    startDate.setFullYear(startDate.getFullYear() - 1);
-    // ensure inclusive range: start -> today
-    const startIso = startDate.toISOString().slice(0, 10);
-    const endIso = cutoffDate.toISOString().slice(0, 10);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const start = new Date(today);
+    start.setFullYear(start.getFullYear() - 1);
+    start.setHours(0, 0, 0, 0);
 
-    return summaries.filter((summary) => summary.date >= startIso && summary.date <= endIso);
+    const startIso = start.toISOString().slice(0, 10);
+    const endIso = today.toISOString().slice(0, 10);
+    const rangeSummaries = summaries.filter((summary) => summary.date >= startIso && summary.date <= endIso);
+
+    return {
+      displayStart: start,
+      displayEnd: today,
+      currentSummaries: rangeSummaries,
+    };
   }, [isYearSelected, selectedYear, summaries, summariesByYear]);
 
   const cellMap = useMemo(() => {
@@ -75,46 +91,16 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
   const { weeks, monthMarkers, totalWeeks } = useMemo(() => {
     return buildGrid({
       cellMap,
-      selectedYear,
-      isYearSelected,
+      displayStart,
+      displayEnd,
     });
-  }, [cellMap, selectedYear, isYearSelected]);
+  }, [cellMap, displayStart, displayEnd]);
 
   const heatmapWidth = useMemo(() => {
     const innerWidth = totalWeeks * CELL_WITH_GAP;
     const gapBetweenLabelsAndGrid = 8; // gap-2 => 0.5rem => 8px
     return innerWidth + DAY_LABEL_COLUMN_WIDTH + gapBetweenLabelsAndGrid;
   }, [totalWeeks]);
-
-  const yearTotals = useMemo(() => {
-    const totals = new Map<number, { activeDays: number; totalCount: number }>();
-    for (const [year, entries] of summariesByYear.entries()) {
-      let activeDays = 0;
-      let totalCount = 0;
-      for (const summary of entries) {
-        if (summary.count > 0) {
-          activeDays += 1;
-        }
-        totalCount += summary.count;
-      }
-      totals.set(year, { activeDays, totalCount });
-    }
-    return totals;
-  }, [summariesByYear]);
-
-  const selectedYearStats = useMemo(() => {
-    if (!isYearSelected || selectedYear === null) {
-      return null;
-    }
-    return (
-      yearTotals.get(selectedYear) ?? {
-        activeDays: 0,
-        totalCount: 0,
-      }
-    );
-  }, [isYearSelected, selectedYear, yearTotals]);
-
-  const hasEntries = currentSummaries.length > 0;
 
   if (summaries.length === 0) {
     return (
@@ -164,9 +150,9 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
                   <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {week.map((day) => (
                       <div
-                        key={day.iso}
+                        key={`${day.iso}-${day.date.getTime()}`}
                         className={`h-3 w-3 rounded-sm border border-transparent ${getCellClassName(day)}`}
-                        title={`${day.iso} · ${day.count} 次打卡`}
+                        title={day.isPadding ? undefined : `${day.iso} · ${day.count} 次打卡`}
                       />
                     ))}
                   </div>
@@ -206,32 +192,19 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
 
 function buildGrid({
   cellMap,
-  selectedYear,
-  isYearSelected,
+  displayStart,
+  displayEnd,
 }: {
   cellMap: Map<string, number>;
-  selectedYear: number | null;
-  isYearSelected: boolean;
+  displayStart: Date;
+  displayEnd: Date;
 }): { weeks: DayCell[][]; monthMarkers: MonthMarker[]; totalWeeks: number } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  let rangeStart: Date;
-  let rangeEnd: Date;
-
-  if (isYearSelected && selectedYear) {
-    rangeStart = startOfWeek(new Date(selectedYear, 0, 1));
-    const endOfYear = new Date(selectedYear, 11, 31);
-    endOfYear.setHours(0, 0, 0, 0);
-    rangeEnd = startOfWeek(endOfYear);
-    rangeEnd.setDate(rangeEnd.getDate() + (DAYS_IN_WEEK - 1));
-  } else {
-    rangeEnd = startOfWeek(today);
-    const start = new Date(today);
-    start.setHours(0, 0, 0, 0);
-    start.setFullYear(start.getFullYear() - 1);
-    rangeStart = startOfWeek(start);
-  }
+  const rangeStart = startOfWeek(displayStart);
+  const rangeEnd = startOfWeek(displayEnd);
+  rangeEnd.setDate(rangeEnd.getDate() + (DAYS_IN_WEEK - 1));
 
   const weeks: DayCell[][] = [];
   const monthMarkers: MonthMarker[] = [];
@@ -240,25 +213,34 @@ function buildGrid({
   let previousMonth = -1;
 
   while (current <= rangeEnd) {
+    if (week.length === 0) {
+      const weekStart = new Date(current);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + (DAYS_IN_WEEK - 1));
+
+      const effectiveStart = weekStart < displayStart ? new Date(displayStart) : weekStart;
+      const effectiveEnd = weekEnd > displayEnd ? new Date(displayEnd) : weekEnd;
+
+      if (effectiveStart <= effectiveEnd) {
+        const month = effectiveStart.getMonth();
+        if (month !== previousMonth) {
+          monthMarkers.push({ label: `${month + 1}月`, columnIndex: weeks.length });
+          previousMonth = month;
+        }
+      }
+    }
+
     const iso = current.toISOString().slice(0, 10);
     const count = cellMap.get(iso) ?? 0;
     const isFuture = current.getTime() > today.getTime();
-
-    if (week.length === 0) {
-      const month = current.getMonth();
-      const monthChanged = month !== previousMonth;
-      const isFirstWeekOfMonth = monthChanged && (current.getDate() <= 7 || weeks.length === 0);
-      if (isFirstWeekOfMonth) {
-        monthMarkers.push({ label: `${month + 1}月`, columnIndex: weeks.length });
-        previousMonth = month;
-      }
-    }
+    const isPadding = current < displayStart || current > displayEnd;
 
     week.push({
       date: new Date(current),
       iso,
       count,
       isFuture,
+      isPadding,
     });
 
     if (week.length === DAYS_IN_WEEK) {
@@ -280,6 +262,7 @@ function buildGrid({
         iso,
         count: 0,
         isFuture: nextDate.getTime() > today.getTime(),
+        isPadding: true,
       });
     }
     weeks.push(week);
@@ -298,6 +281,9 @@ function startOfWeek(date: Date) {
 }
 
 function getCellClassName(day: DayCell) {
+  if (day.isPadding) {
+    return "bg-transparent border-transparent opacity-0";
+  }
   if (day.isFuture) {
     return "bg-zinc-100 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700";
   }
@@ -377,6 +363,7 @@ function HeatmapLegend() {
               date: new Date(),
               iso: "",
               isFuture: false,
+              isPadding: false,
             })}`}
           />
         ))}
