@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import type { DailySummary } from "@/types/check-in";
 
@@ -26,6 +26,18 @@ interface CheckInHeatmapProps {
 }
 
 export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
+  const [now, setNow] = useState<Date>(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date;
+  });
+
+  useEffect(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    setNow(date);
+  }, []);
+
   const availableYears = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
@@ -63,22 +75,20 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
       };
     }
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const start = new Date(today);
+    const start = new Date(now);
     start.setFullYear(start.getFullYear() - 1);
     start.setHours(0, 0, 0, 0);
 
-    const startIso = start.toISOString().slice(0, 10);
-    const endIso = today.toISOString().slice(0, 10);
+    const startIso = formatDateKey(start);
+    const endIso = formatDateKey(now);
     const rangeSummaries = summaries.filter((summary) => summary.date >= startIso && summary.date <= endIso);
 
     return {
       displayStart: start,
-      displayEnd: today,
+      displayEnd: now,
       currentSummaries: rangeSummaries,
     };
-  }, [isYearSelected, selectedYear, summaries, summariesByYear]);
+  }, [isYearSelected, selectedYear, summaries, summariesByYear, now]);
 
   const cellMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -199,9 +209,6 @@ function buildGrid({
   displayStart: Date;
   displayEnd: Date;
 }): { weeks: DayCell[][]; monthMarkers: MonthMarker[]; totalWeeks: number } {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
   const rangeStart = startOfWeek(displayStart);
   const rangeEnd = startOfWeek(displayEnd);
   rangeEnd.setDate(rangeEnd.getDate() + (DAYS_IN_WEEK - 1));
@@ -230,9 +237,9 @@ function buildGrid({
       }
     }
 
-    const iso = current.toISOString().slice(0, 10);
+    const iso = formatDateKey(current);
     const count = cellMap.get(iso) ?? 0;
-    const isFuture = current.getTime() > today.getTime();
+    const isFuture = current.getTime() > displayEnd.getTime();
     const isPadding = current < displayStart || current > displayEnd;
 
     week.push({
@@ -256,12 +263,12 @@ function buildGrid({
       const last = week[week.length - 1]?.date ?? new Date(rangeEnd);
       const nextDate = new Date(last);
       nextDate.setDate(nextDate.getDate() + 1);
-      const iso = nextDate.toISOString().slice(0, 10);
+      const iso = formatDateKey(nextDate);
       week.push({
         date: nextDate,
         iso,
         count: 0,
-        isFuture: nextDate.getTime() > today.getTime(),
+        isFuture: nextDate.getTime() > displayEnd.getTime(),
         isPadding: true,
       });
     }
@@ -278,6 +285,13 @@ function startOfWeek(date: Date) {
   const diff = (day + 6) % 7;
   copy.setDate(copy.getDate() - diff);
   return copy;
+}
+
+function formatDateKey(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }
 
 function getCellClassName(day: DayCell) {
