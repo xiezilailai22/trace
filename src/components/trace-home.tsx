@@ -7,6 +7,7 @@ import { useMemo, useState, useSyncExternalStore } from "react";
 import {
   addCheckIn,
   calculateStreakStats,
+  getCachedCheckIns,
   groupCheckInsByDate,
   loadCheckIns,
   subscribeCheckIns,
@@ -52,7 +53,7 @@ export default function TraceHome() {
   const entries = useSyncExternalStore(
     subscribeCheckIns,
     loadCheckIns,
-    () => [],
+    getCachedCheckIns,
   );
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);

@@ -10,6 +10,7 @@ import {
 type CheckInListener = () => void;
 
 const listeners = new Set<CheckInListener>();
+const EMPTY_ENTRIES: CheckInEntry[] = [];
 let cachedEntries: CheckInEntry[] | undefined;
 
 function notifyListeners() {
@@ -44,13 +45,13 @@ export function subscribeCheckIns(listener: CheckInListener) {
 export function loadCheckIns(): CheckInEntry[] {
   if (cachedEntries) return cachedEntries;
   if (typeof window === "undefined") {
-    cachedEntries = [];
+    cachedEntries = EMPTY_ENTRIES;
     return cachedEntries;
   }
   try {
     const raw = window.localStorage.getItem(CHECK_IN_STORAGE_KEY);
     if (!raw) {
-      cachedEntries = [];
+      cachedEntries = EMPTY_ENTRIES;
       return cachedEntries;
     }
     const parsed = JSON.parse(raw) as CheckInEntry[];
@@ -58,9 +59,13 @@ export function loadCheckIns(): CheckInEntry[] {
     return cachedEntries;
   } catch (error) {
     console.error("Failed to parse check-in data", error);
-    cachedEntries = [];
+    cachedEntries = EMPTY_ENTRIES;
     return cachedEntries;
   }
+}
+
+export function getCachedCheckIns(): CheckInEntry[] {
+  return cachedEntries ?? EMPTY_ENTRIES;
 }
 
 export function saveCheckIns(entries: CheckInEntry[]) {
