@@ -3,6 +3,10 @@ import { useMemo, useState } from "react";
 import type { DailySummary } from "@/types/check-in";
 
 const DAYS_IN_WEEK = 7;
+const CELL_SIZE = 12;
+const CELL_GAP = 2;
+const CELL_WITH_GAP = CELL_SIZE + CELL_GAP;
+const DAY_LABEL_COLUMN_WIDTH = 40;
 
 interface DayCell {
   date: Date;
@@ -77,6 +81,7 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
     activeDays: 0,
     totalCount: 0,
   };
+  const hasDataForSelectedYear = currentYearSummaries.length > 0;
 
   if (summaries.length === 0) {
     return (
@@ -110,9 +115,9 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
             <div className="min-w-fit">
               <MonthLabels markers={monthMarkers} weekCount={weeks.length} />
             </div>
-            <div className="flex gap-2 min-w-fit">
+            <div className="flex min-w-fit gap-2">
               <DayLabels />
-              <div className="flex gap-[2px]">
+              <div className="flex gap-[2px]" style={{ width: `${weeks.length * CELL_WITH_GAP}px` }}>
                 {weeks.map((week, weekIndex) => (
                   <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {week.map((day) => (
@@ -152,20 +157,26 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
             ))}
           </div>
 
-          <div className="grid gap-3 rounded-xl border border-dashed border-zinc-200 p-3 text-xs dark:border-zinc-700">
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500 dark:text-zinc-400">活跃天数</span>
-              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                {selectedYearStats.activeDays}
-              </span>
+          {hasDataForSelectedYear ? (
+            <div className="grid gap-3 rounded-xl border border-dashed border-zinc-200 p-3 text-xs dark:border-zinc-700">
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500 dark:text-zinc-400">活跃天数</span>
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  {selectedYearStats.activeDays}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-zinc-500 dark:text-zinc-400">累计打卡</span>
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
+                  {selectedYearStats.totalCount}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500 dark:text-zinc-400">累计打卡</span>
-              <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                {selectedYearStats.totalCount}
-              </span>
-            </div>
-          </div>
+          ) : (
+            <p className="rounded-xl border border-dashed border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+              {selectedYear} 年暂无打卡记录，先从练习开始吧。
+            </p>
+          )}
         </aside>
       </div>
     </div>
@@ -276,7 +287,10 @@ function getCellClassName(day: DayCell) {
 function DayLabels() {
   const labels = ["一", "三", "五"];
   return (
-    <div className="flex flex-col justify-between py-[2px] text-[10px] leading-3 text-zinc-400 dark:text-zinc-500">
+    <div
+      className="flex flex-col justify-between py-[2px] text-[10px] leading-3 text-zinc-400 dark:text-zinc-500"
+      style={{ width: `${DAY_LABEL_COLUMN_WIDTH}px` }}
+    >
       {Array.from({ length: DAYS_IN_WEEK }).map((_, index) => (
         <span key={index} className="h-3">
           {labels.includes(labelForIndex(index)) ? labelForIndex(index) : ""}
@@ -291,27 +305,28 @@ function labelForIndex(index: number) {
   return mapping[index];
 }
 
-function MonthLabels({
-  markers,
-  weekCount,
-}: {
-  markers: MonthMarker[];
-  weekCount: number;
-}) {
+function MonthLabels({ markers, weekCount }: { markers: MonthMarker[]; weekCount: number }) {
   if (markers.length === 0) {
     return null;
   }
 
   return (
-    <div className="ml-6 flex gap-[2px] text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
-      {Array.from({ length: weekCount }).map((_, index) => {
-        const marker = markers.find((item) => item.columnIndex === index);
-        return (
-          <span key={index} className="flex w-3 items-center justify-center">
-            {marker ? marker.label : ""}
+    <div className="flex items-center gap-2">
+      <div aria-hidden="true" style={{ width: `${DAY_LABEL_COLUMN_WIDTH}px` }} />
+      <div
+        className="relative h-4 text-[10px] font-medium text-zinc-400 dark:text-zinc-500"
+        style={{ width: `${weekCount * CELL_WITH_GAP}px` }}
+      >
+        {markers.map((marker) => (
+          <span
+            key={`${marker.label}-${marker.columnIndex}`}
+            className="absolute whitespace-nowrap"
+            style={{ left: `${marker.columnIndex * CELL_WITH_GAP}px` }}
+          >
+            {marker.label}
           </span>
-        );
-      })}
+        ))}
+      </div>
     </div>
   );
 }
