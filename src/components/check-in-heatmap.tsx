@@ -134,7 +134,7 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
         <div
           className="flex flex-col gap-4 md:flex-shrink-0"
-          style={{ width: heatmapWidth }}
+          style={{ width: "100%", maxWidth: `${heatmapWidth}px` }}
         >
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -178,17 +178,17 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
           <HeatmapLegend />
         </div>
 
-        <aside className="flex flex-1 flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-300">
+        <aside className="flex flex-col gap-4 rounded-2xl bg-white/70 p-4 text-sm text-zinc-600 dark:bg-zinc-900/70 dark:text-zinc-300">
           <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
             年份切换
           </span>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-2">
             {availableYears.map((year) => (
               <button
                 key={year}
                 type="button"
                 onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
-                className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 ${
+                className={`w-full rounded-full border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 ${
                   selectedYear === year
                     ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                     : "border-zinc-200 bg-transparent text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600"
@@ -198,29 +198,6 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
               </button>
             ))}
           </div>
-
-          {isYearSelected && selectedYearStats ? (
-            <div className="grid gap-3 rounded-xl border border-dashed border-zinc-200 p-3 text-xs dark:border-zinc-700">
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500 dark:text-zinc-400">活跃天数</span>
-                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                  {selectedYearStats.activeDays}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-zinc-500 dark:text-zinc-400">累计打卡</span>
-                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">
-                  {selectedYearStats.totalCount}
-                </span>
-              </div>
-            </div>
-          ) : (
-            <p className="rounded-xl border border-dashed border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-              {hasEntries
-                ? "当前展示近 12 个月的打卡情况"
-                : "暂无符合当前条件的打卡记录"}
-            </p>
-          )}
         </aside>
       </div>
     </div>
