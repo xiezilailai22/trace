@@ -4,30 +4,31 @@ import type { CheckInEntry } from "@/types/check-in";
 
 interface CheckInTimelineProps {
   entries: CheckInEntry[];
+  visibleCount?: number;
+  onLoadMore?: () => void;
 }
 
-export default function CheckInTimeline({ entries }: CheckInTimelineProps) {
+export default function CheckInTimeline({
+  entries,
+  visibleCount,
+  onLoadMore,
+}: CheckInTimelineProps) {
   if (entries.length === 0) {
-    return null;
+    return (
+      <div className="flex items-center justify-center rounded-3xl border border-zinc-200 bg-white/80 p-16 text-sm text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/70 dark:text-zinc-400">
+        暂无打卡记录，试着提交第一条练习吧。
+      </div>
+    );
   }
 
-  return (
-    <section className="flex flex-col gap-4 rounded-3xl border border-zinc-200 bg-white/80 p-8 dark:border-zinc-800 dark:bg-zinc-900/70">
-      <div className="flex items-center justify-between">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-            历史打卡记录
-          </h2>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            按时间倒序排列，方便回顾你的成长轨迹。
-          </p>
-        </div>
-      </div>
+  const items = typeof visibleCount === "number" ? entries.slice(0, visibleCount) : entries;
 
+  return (
+    <div className="flex flex-col gap-6">
       <div className="grid gap-4">
-        {entries.map((entry) => (
+        {items.map((entry) => (
           <article
-            key={entry.id}
+            key={entry.id ?? entry.createdAt}
             className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900/70"
           >
             <div className="flex flex-col gap-1">
@@ -41,19 +42,35 @@ export default function CheckInTimeline({ entries }: CheckInTimelineProps) {
               )}
             </div>
 
-            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
-              <Image
-                src={entry.imageData}
-                alt={entry.note ? `打卡：${entry.note}` : "打卡图片"}
-                width={1280}
-                height={960}
-                className="max-h-96 w-full object-cover"
-              />
-            </div>
+            {entry.imageData ? (
+              <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-900">
+                <Image
+                  src={entry.imageData}
+                  alt={entry.note ? `打卡：${entry.note}` : "打卡图片"}
+                  width={1280}
+                  height={960}
+                  className="max-h-96 w-full object-cover"
+                />
+              </div>
+            ) : (
+              <div className="flex h-48 items-center justify-center rounded-2xl border border-dashed border-zinc-200 bg-zinc-50 text-sm text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-500">
+                暂无图片
+              </div>
+            )}
           </article>
         ))}
       </div>
-    </section>
+
+      {typeof visibleCount === "number" && visibleCount < entries.length && onLoadMore && (
+        <button
+          type="button"
+          onClick={onLoadMore}
+          className="self-center rounded-full border border-zinc-200 bg-white px-6 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:border-zinc-700 dark:bg-zinc-900/60 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          加载更多
+        </button>
+      )}
+    </div>
   );
 }
 
