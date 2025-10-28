@@ -28,10 +28,11 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
   const availableYears = useMemo(() => {
     const now = new Date();
     const currentYear = now.getFullYear();
-    return [currentYear, currentYear - 1];
+    const previousYear = currentYear - 1;
+    return [currentYear, previousYear];
   }, []);
 
-  const [selectedYear, setSelectedYear] = useState<number>(availableYears[0]);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
 
   const summariesByYear = useMemo(() => {
     const map = new Map<number, DailySummary[]>();
@@ -45,28 +46,52 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
     return map;
   }, [summaries]);
 
-  const currentYearSummaries = useMemo(() => {
-    return summariesByYear.get(selectedYear) ?? [];
-  }, [selectedYear, summariesByYear]);
+  const isYearSelected = selectedYear !== null;
 
-  const yearCellMap = useMemo(() => {
+  const currentSummaries = useMemo(() => {
+    if (isYearSelected && selectedYear) {
+      return summariesByYear.get(selectedYear) ?? [];
+    }
+
+    const cutoffDate = new Date();
+    cutoffDate.setHours(0, 0, 0, 0);
+    const startDate = new Date(cutoffDate);
+    startDate.setFullYear(startDate.getFullYear() - 1);
+    // ensure inclusive range: start -> today
+    const startIso = startDate.toISOString().slice(0, 10);
+    const endIso = cutoffDate.toISOString().slice(0, 10);
+
+    return summaries.filter((summary) => summary.date >= startIso && summary.date <= endIso);
+  }, [isYearSelected, selectedYear, summaries, summariesByYear]);
+
+  const cellMap = useMemo(() => {
     const map = new Map<string, number>();
-    for (const summary of currentYearSummaries) {
+    for (const summary of currentSummaries) {
       map.set(summary.date, summary.count);
     }
     return map;
-  }, [currentYearSummaries]);
+  }, [currentSummaries]);
 
-  const { weeks, monthMarkers } = useMemo(() => {
-    return buildYearGrid(yearCellMap, selectedYear);
-  }, [selectedYear, yearCellMap]);
+  const { weeks, monthMarkers, totalWeeks } = useMemo(() => {
+    return buildGrid({
+      cellMap,
+      selectedYear,
+      isYearSelected,
+    });
+  }, [cellMap, selectedYear, isYearSelected]);
+
+  const heatmapWidth = useMemo(() => {
+    const innerWidth = totalWeeks * CELL_WITH_GAP;
+    const gapBetweenLabelsAndGrid = 8; // gap-2 => 0.5rem => 8px
+    return innerWidth + DAY_LABEL_COLUMN_WIDTH + gapBetweenLabelsAndGrid;
+  }, [totalWeeks]);
 
   const yearTotals = useMemo(() => {
     const totals = new Map<number, { activeDays: number; totalCount: number }>();
-    for (const [year, yearSummaries] of summariesByYear.entries()) {
+    for (const [year, entries] of summariesByYear.entries()) {
       let activeDays = 0;
       let totalCount = 0;
-      for (const summary of yearSummaries) {
+      for (const summary of entries) {
         if (summary.count > 0) {
           activeDays += 1;
         }
@@ -77,11 +102,19 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
     return totals;
   }, [summariesByYear]);
 
-  const selectedYearStats = yearTotals.get(selectedYear) ?? {
-    activeDays: 0,
-    totalCount: 0,
-  };
-  const hasDataForSelectedYear = currentYearSummaries.length > 0;
+  const selectedYearStats = useMemo(() => {
+    if (!isYearSelected || selectedYear === null) {
+      return null;
+    }
+    return (
+      yearTotals.get(selectedYear) ?? {
+        activeDays: 0,
+        totalCount: 0,
+      }
+    );
+  }, [isYearSelected, selectedYear, yearTotals]);
+
+  const hasEntries = currentSummaries.length > 0;
 
   if (summaries.length === 0) {
     return (
@@ -90,7 +123,7 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
           打卡热力图
         </span>
         <p>
-          暂无打卡数据。完成第一次打卡后，将自动生成近两年的坚持情况，可直观查看练习频率。
+          暂无打卡数据。完成第一次打卡后，将自动生成近 12 个月的坚持情况，并支持查看近两年的完整热力图。
         </p>
       </div>
     );
@@ -98,26 +131,35 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
 
   return (
     <div className="flex flex-col gap-6 rounded-2xl border border-zinc-200 bg-white/60 p-6 dark:border-zinc-700 dark:bg-zinc-900/60">
-      <div className="flex flex-col gap-4 md:grid md:grid-cols-[minmax(0,3fr)_minmax(220px,1fr)] md:items-start md:gap-6">
-        <div className="flex flex-col gap-4 md:min-w-0">
+      <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-8">
+        <div
+          className="flex flex-col gap-4 md:flex-shrink-0"
+          style={{ width: heatmapWidth }}
+        >
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-base font-semibold text-zinc-800 dark:text-zinc-100">
                 打卡热力图
               </span>
               <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                {selectedYear} 年的打卡频率，颜色越深代表当日打卡次数越多
+                {isYearSelected && selectedYear
+                  ? `${selectedYear} 年的打卡频率`
+                  : "最近 12 个月的打卡频率"}
+                ，颜色越深代表当日打卡次数越多
               </span>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 overflow-x-auto md:max-w-full">
-            <div className="min-w-fit">
-              <MonthLabels markers={monthMarkers} weekCount={weeks.length} />
+          <div className="flex flex-col gap-3">
+            <div className="w-full overflow-x-auto md:overflow-visible">
+              <MonthLabels markers={monthMarkers} weekCount={totalWeeks} />
             </div>
-            <div className="flex min-w-fit gap-2">
+            <div className="flex gap-2 overflow-x-auto md:overflow-visible">
               <DayLabels />
-              <div className="flex gap-[2px]" style={{ width: `${weeks.length * CELL_WITH_GAP}px` }}>
+              <div
+                className="flex gap-[2px]"
+                style={{ width: `${totalWeeks * CELL_WITH_GAP}px` }}
+              >
                 {weeks.map((week, weekIndex) => (
                   <div key={weekIndex} className="flex flex-col gap-[2px]">
                     {week.map((day) => (
@@ -136,18 +178,18 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
           <HeatmapLegend />
         </div>
 
-        <aside className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-300 md:min-w-[220px] md:max-w-xs">
+        <aside className="flex flex-1 flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/70 dark:text-zinc-300">
           <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
             年份切换
           </span>
-          <div className="flex gap-2">
+          <div className="flex gap-3">
             {availableYears.map((year) => (
               <button
                 key={year}
                 type="button"
-                onClick={() => setSelectedYear(year)}
+                onClick={() => setSelectedYear((prev) => (prev === year ? null : year))}
                 className={`flex-1 rounded-full border px-4 py-2 text-sm font-medium transition focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:focus-visible:ring-zinc-600 ${
-                  year === selectedYear
+                  selectedYear === year
                     ? "border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900"
                     : "border-zinc-200 bg-transparent text-zinc-600 hover:border-zinc-300 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600"
                 }`}
@@ -157,7 +199,7 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
             ))}
           </div>
 
-          {hasDataForSelectedYear ? (
+          {isYearSelected && selectedYearStats ? (
             <div className="grid gap-3 rounded-xl border border-dashed border-zinc-200 p-3 text-xs dark:border-zinc-700">
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 dark:text-zinc-400">活跃天数</span>
@@ -174,7 +216,9 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
             </div>
           ) : (
             <p className="rounded-xl border border-dashed border-zinc-200 p-3 text-xs text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-              {selectedYear} 年暂无打卡记录，先从练习开始吧。
+              {hasEntries
+                ? "当前展示近 12 个月的打卡情况"
+                : "暂无符合当前条件的打卡记录"}
             </p>
           )}
         </aside>
@@ -183,18 +227,34 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
   );
 }
 
-function buildYearGrid(
-  cellMap: Map<string, number>,
-  year: number,
-): { weeks: DayCell[][]; monthMarkers: MonthMarker[] } {
+function buildGrid({
+  cellMap,
+  selectedYear,
+  isYearSelected,
+}: {
+  cellMap: Map<string, number>;
+  selectedYear: number | null;
+  isYearSelected: boolean;
+}): { weeks: DayCell[][]; monthMarkers: MonthMarker[]; totalWeeks: number } {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const rangeStart = startOfWeek(new Date(year, 0, 1));
-  const lastDayOfYear = new Date(year, 11, 31);
-  lastDayOfYear.setHours(0, 0, 0, 0);
-  const rangeEnd = startOfWeek(lastDayOfYear);
-  rangeEnd.setDate(rangeEnd.getDate() + (DAYS_IN_WEEK - 1));
+  let rangeStart: Date;
+  let rangeEnd: Date;
+
+  if (isYearSelected && selectedYear) {
+    rangeStart = startOfWeek(new Date(selectedYear, 0, 1));
+    const endOfYear = new Date(selectedYear, 11, 31);
+    endOfYear.setHours(0, 0, 0, 0);
+    rangeEnd = startOfWeek(endOfYear);
+    rangeEnd.setDate(rangeEnd.getDate() + (DAYS_IN_WEEK - 1));
+  } else {
+    rangeEnd = startOfWeek(today);
+    const start = new Date(today);
+    start.setHours(0, 0, 0, 0);
+    start.setFullYear(start.getFullYear() - 1);
+    rangeStart = startOfWeek(start);
+  }
 
   const weeks: DayCell[][] = [];
   const monthMarkers: MonthMarker[] = [];
@@ -205,18 +265,14 @@ function buildYearGrid(
   while (current <= rangeEnd) {
     const iso = current.toISOString().slice(0, 10);
     const count = cellMap.get(iso) ?? 0;
-    const isFuture =
-      year === today.getFullYear() && current.getTime() > today.getTime();
+    const isFuture = current.getTime() > today.getTime();
 
     if (week.length === 0) {
       const month = current.getMonth();
-      const isFirstWeekOfMonth =
-        month !== previousMonth && (current.getDate() <= 7 || weeks.length === 0);
+      const monthChanged = month !== previousMonth;
+      const isFirstWeekOfMonth = monthChanged && (current.getDate() <= 7 || weeks.length === 0);
       if (isFirstWeekOfMonth) {
-        monthMarkers.push({
-          label: `${month + 1}月`,
-          columnIndex: weeks.length,
-        });
+        monthMarkers.push({ label: `${month + 1}月`, columnIndex: weeks.length });
         previousMonth = month;
       }
     }
@@ -246,14 +302,13 @@ function buildYearGrid(
         date: nextDate,
         iso,
         count: 0,
-        isFuture:
-          year === today.getFullYear() && nextDate.getTime() > today.getTime(),
+        isFuture: nextDate.getTime() > today.getTime(),
       });
     }
     weeks.push(week);
   }
 
-  return { weeks, monthMarkers };
+  return { weeks, monthMarkers, totalWeeks: weeks.length };
 }
 
 function startOfWeek(date: Date) {
