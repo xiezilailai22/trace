@@ -396,19 +396,6 @@ export default function TraceHome() {
             </div>
           </div>
 
-          <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white/80 p-4 dark:border-zinc-700 dark:bg-zinc-900/60">
-            {statsConfig.map(({ key, label, formatter }) => (
-              <div key={key} className="flex flex-col gap-1 rounded-xl bg-white/70 p-3 shadow-sm dark:bg-zinc-900/60">
-                <span className="text-xs font-semibold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
-                  {label}
-                </span>
-                <span className="text-2xl font-semibold text-zinc-900 dark:text-zinc-100">
-                  {formatter ? formatter(stats[key]) : stats[key]}
-                </span>
-              </div>
-            ))}
-          </div>
-
           <button
             type="button"
             onClick={openCheckInModal}
