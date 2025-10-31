@@ -1,3 +1,5 @@
+import type { KeyboardEvent } from "react";
+
 import Image from "next/image";
 
 import type { CheckInEntry } from "@/types/check-in";
@@ -6,12 +8,20 @@ interface CheckInTimelineProps {
   entries: CheckInEntry[];
   visibleCount?: number;
   onLoadMore?: () => void;
+  onViewDetail?: (entry: CheckInEntry) => void;
+  onPreviewImage?: (entry: CheckInEntry) => void;
+  onEditEntry?: (entry: CheckInEntry) => void;
+  onDeleteEntry?: (entry: CheckInEntry) => void;
 }
 
 export default function CheckInTimeline({
   entries,
   visibleCount,
   onLoadMore,
+  onViewDetail,
+  onPreviewImage,
+  onEditEntry,
+  onDeleteEntry,
 }: CheckInTimelineProps) {
   if (entries.length === 0) {
     return (
@@ -29,7 +39,23 @@ export default function CheckInTimeline({
         {items.map((entry) => (
           <article
             key={entry.id ?? entry.createdAt}
-            className="flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900/70"
+            role={onViewDetail ? "button" : undefined}
+            tabIndex={onViewDetail ? 0 : undefined}
+            onClick={() => {
+              if (onViewDetail) {
+                onViewDetail(entry);
+              }
+            }}
+            onKeyDown={(event: KeyboardEvent<HTMLElement>) => {
+              if (!onViewDetail) {
+                return;
+              }
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                onViewDetail(entry);
+              }
+            }}
+            className={`flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white/70 p-6 shadow-sm transition hover:-translate-y-1 hover:shadow-lg dark:border-zinc-800 dark:bg-zinc-900/70 ${onViewDetail ? "cursor-pointer" : ""}`}
           >
             <div className="flex flex-col gap-1">
               <time className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -50,6 +76,23 @@ export default function CheckInTimeline({
                   width={1280}
                   height={960}
                   className="max-h-96 w-full object-cover"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    if (onPreviewImage) {
+                      onPreviewImage(entry);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      if (onPreviewImage) {
+                        onPreviewImage(entry);
+                      }
+                    }
+                  }}
                 />
               </div>
             ) : (
@@ -57,6 +100,33 @@ export default function CheckInTimeline({
                 暂无图片
               </div>
             )}
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (onEditEntry) {
+                    onEditEntry(entry);
+                  }
+                }}
+                className="rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                修改备注
+              </button>
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  if (onDeleteEntry) {
+                    onDeleteEntry(entry);
+                  }
+                }}
+                className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-medium text-red-500 transition hover:bg-red-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-200 dark:border-red-500/40 dark:text-red-300 dark:hover:bg-red-500/10"
+              >
+                删除记录
+              </button>
+            </div>
           </article>
         ))}
       </div>

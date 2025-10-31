@@ -13,6 +13,34 @@ const listeners = new Set<CheckInListener>();
 const EMPTY_ENTRIES: CheckInEntry[] = [];
 let cachedEntries: CheckInEntry[] | undefined;
 
+function generateCheckInId() {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return crypto.randomUUID();
+  }
+
+  return `checkin_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+}
+
+function ensureEntryHasId(entry: CheckInEntry): CheckInEntry {
+  if (entry.id && entry.id.trim().length > 0) {
+    return entry;
+  }
+
+  return {
+    ...entry,
+    id: generateCheckInId(),
+  };
+}
+
+function findEntryIndex(entries: CheckInEntry[], identifier: string) {
+  const byIdIndex = entries.findIndex((entry) => entry.id === identifier);
+  if (byIdIndex !== -1) {
+    return byIdIndex;
+  }
+
+  return entries.findIndex((entry) => entry.createdAt === identifier);
+}
+
 function notifyListeners() {
   for (const listener of listeners) {
     listener();
@@ -84,8 +112,38 @@ export function saveCheckIns(entries: CheckInEntry[]) {
 
 export function addCheckIn(entry: CheckInEntry) {
   const current = loadCheckIns();
-  const updated = [entry, ...current];
+  const normalized = ensureEntryHasId(entry);
+  const updated = [normalized, ...current];
   saveCheckIns(updated);
+}
+
+export function updateCheckIn(id: string, patch: Partial<Omit<CheckInEntry, "id" | "createdAt">>) {
+  const current = loadCheckIns();
+  const index = findEntryIndex(current, id);
+
+  if (index === -1) {
+    throw new Error("打卡记录不存在，无法更新");
+  }
+
+  const nextEntries = [...current];
+  const nextEntry: CheckInEntry = {
+    ...nextEntries[index],
+    ...patch,
+  };
+  nextEntries[index] = nextEntry;
+  saveCheckIns(nextEntries);
+}
+
+export function removeCheckIn(id: string) {
+  const current = loadCheckIns();
+  const index = findEntryIndex(current, id);
+
+  if (index === -1) {
+    throw new Error("打卡记录不存在，无法删除");
+  }
+
+  const nextEntries = current.slice(0, index).concat(current.slice(index + 1));
+  saveCheckIns(nextEntries);
 }
 
 export function groupCheckInsByDate(entries: CheckInEntry[]): DailySummary[] {
