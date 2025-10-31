@@ -39,11 +39,18 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
   }, []);
 
   const availableYears = useMemo(() => {
-    const now = new Date();
     const currentYear = now.getFullYear();
-    const previousYear = currentYear - 1;
-    return [currentYear, previousYear];
-  }, []);
+    const years = new Set<number>([currentYear, currentYear - 1]);
+
+    for (const summary of summaries) {
+      const year = Number.parseInt(summary.date.slice(0, 4), 10);
+      if (!Number.isNaN(year)) {
+        years.add(year);
+      }
+    }
+
+    return Array.from(years).sort((a, b) => b - a);
+  }, [now, summaries]);
 
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
 

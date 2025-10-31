@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 
 import CheckInHeatmap from "@/components/check-in-heatmap";
@@ -29,6 +29,17 @@ const uploadInitialState: UploadState = {
   isSubmitting: false,
 };
 
+interface AvatarUploadState {
+  imageFile?: File;
+  imagePreview?: string;
+  isSubmitting: boolean;
+  error?: string;
+}
+
+const avatarUploadInitialState: AvatarUploadState = {
+  isSubmitting: false,
+};
+
 type LayoutMode = "grid" | "timeline";
 
 const profile = {
@@ -52,6 +63,19 @@ export default function TraceHome() {
   const entries = useSyncExternalStore(subscribeCheckIns, loadCheckIns, getCachedCheckIns);
   const [uploadState, setUploadState] = useState<UploadState>(uploadInitialState);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false);
+  const [isAvatarDialogOpen, setIsAvatarDialogOpen] = useState(false);
+  const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
+  const avatarButtonRef = useRef<HTMLButtonElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const [avatarUploadState, setAvatarUploadState] = useState<AvatarUploadState>(avatarUploadInitialState);
+  const [avatarSrc, setAvatarSrc] = useState<string>(profile.avatar);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | undefined>(undefined);
+
+  const closeAvatarMenu = useCallback(() => {
+    setIsAvatarMenuOpen(false);
+  }, []);
   const [isSuccessVisible, setIsSuccessVisible] = useState(false);
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("timeline");
 
@@ -79,6 +103,145 @@ export default function TraceHome() {
     resetUploadState();
     setIsSuccessVisible(false);
   };
+
+  const resetAvatarState = useCallback(() => {
+    setAvatarUploadState(avatarUploadInitialState);
+  }, []);
+
+  const closeAvatarDialog = useCallback(() => {
+    setIsAvatarDialogOpen(false);
+    resetAvatarState();
+  }, [resetAvatarState]);
+
+  const closeLogoutDialog = useCallback(() => {
+    setIsLogoutConfirmOpen(false);
+    setLogoutError(undefined);
+  }, []);
+
+  useEffect(() => {
+    if (!isAvatarMenuOpen) {
+      return;
+    }
+
+    function handleOutsideClick(event: MouseEvent) {
+      if (!(event.target instanceof Node)) {
+        return;
+      }
+
+      if (menuRef.current?.contains(event.target) || avatarButtonRef.current?.contains(event.target)) {
+        return;
+      }
+
+      closeAvatarMenu();
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        closeAvatarMenu();
+      }
+    }
+
+    document.addEventListener("mousedown", handleOutsideClick);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handleOutsideClick);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [closeAvatarMenu, isAvatarMenuOpen]);
+
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    setLogoutError(undefined);
+    try {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 600);
+      });
+      console.log("用户已退出登录");
+      closeLogoutDialog();
+    } catch (error) {
+      console.error("退出登录失败", error);
+      setLogoutError("退出失败，请稍后重试");
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [closeLogoutDialog]);
+
+  async function handleAvatarFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const [file] = event.target.files ?? [];
+
+    if (!file) {
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        imageFile: undefined,
+        imagePreview: undefined,
+        error: undefined,
+      }));
+      return;
+    }
+
+    if (!file.type.startsWith("image/")) {
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        imageFile: undefined,
+        imagePreview: undefined,
+        error: "仅支持上传图片文件",
+      }));
+      return;
+    }
+
+    try {
+      const preview = await readFileAsDataUrl(file);
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        imageFile: file,
+        imagePreview: preview,
+        error: undefined,
+      }));
+    } catch (error) {
+      console.error("读取头像失败", error);
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        imageFile: undefined,
+        imagePreview: undefined,
+        error: "头像读取失败，请重试",
+      }));
+    }
+  }
+
+  async function handleAvatarSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const preview = avatarUploadState.imagePreview;
+    if (!preview) {
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        error: "请先选择新的头像图片",
+      }));
+      return;
+    }
+
+    setAvatarUploadState((prev) => ({
+      ...prev,
+      isSubmitting: true,
+      error: undefined,
+    }));
+
+    try {
+      await new Promise((resolve) => {
+        setTimeout(resolve, 500);
+      });
+      setAvatarSrc(preview);
+      closeAvatarDialog();
+    } catch (error) {
+      console.error("更新头像失败", error);
+      setAvatarUploadState((prev) => ({
+        ...prev,
+        isSubmitting: false,
+        error: "更新头像失败，请稍后重试",
+      }));
+    }
+  }
 
   async function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
     const [file] = event.target.files ?? [];
@@ -168,20 +331,54 @@ export default function TraceHome() {
                 {product.name}
               </span>
               <span className="text-base font-medium text-zinc-900 dark:text-zinc-100">
-                成长记录平台
+                界迹，你的设计成长记录平台
               </span>
             </div>
           </div>
-          <button
-            type="button"
-            className="flex items-center gap-3 rounded-full border border-transparent bg-zinc-100 px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-            onClick={() => console.log("logout")}
-          >
-            <span className="relative flex h-9 w-9 items-center justify-center overflow-hidden rounded-full">
-              <Image src={profile.avatar} alt={profile.name} width={36} height={36} className="h-9 w-9 object-cover" />
-            </span>
-            <span>退出登录</span>
-          </button>
+          <div className="relative">
+            <button
+              type="button"
+              ref={avatarButtonRef}
+              aria-haspopup="menu"
+              aria-expanded={isAvatarMenuOpen}
+              onClick={() => setIsAvatarMenuOpen((prev) => !prev)}
+              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-transparent bg-zinc-100 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+            >
+              <Image src={avatarSrc} alt={profile.name} width={40} height={40} className="h-10 w-10 object-cover" />
+            </button>
+            {isAvatarMenuOpen ? (
+              <div
+                ref={menuRef}
+                role="menu"
+                className="absolute right-0 mt-3 w-48 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-lg ring-1 ring-black/5 dark:border-zinc-800 dark:bg-zinc-900/90"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  onClick={() => {
+                    closeAvatarMenu();
+                    resetAvatarState();
+                    setIsAvatarDialogOpen(true);
+                  }}
+                >
+                  更换头像
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-red-500 transition hover:bg-red-50 dark:hover:bg-red-500/10"
+                  onClick={() => {
+                    closeAvatarMenu();
+                    setLogoutError(undefined);
+                    setIsLogoutConfirmOpen(true);
+                  }}
+                >
+                  退出登录
+                </button>
+              </div>
+            ) : null}
+          </div>
         </div>
       </header>
 
@@ -189,7 +386,7 @@ export default function TraceHome() {
         <aside className="flex w-full max-w-sm flex-col gap-6 rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_30px_60px_-45px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800/60 dark:bg-zinc-900/60">
           <div className="flex flex-col items-center gap-4 text-center">
             <span className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-white/80 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-              <Image src={profile.avatar} alt={profile.name} width={120} height={120} className="h-28 w-28 object-cover" />
+              <Image src={avatarSrc} alt={profile.name} width={120} height={120} className="h-28 w-28 object-cover" />
             </span>
             <div className="flex flex-col gap-1">
               <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
@@ -287,6 +484,24 @@ export default function TraceHome() {
             setUploadState((prev) => ({ ...prev, note, success: undefined }))
           }
           isSuccessVisible={isSuccessVisible}
+        />
+      )}
+
+      {isAvatarDialogOpen && (
+        <AvatarDialog
+          avatarState={avatarUploadState}
+          onClose={closeAvatarDialog}
+          onFileChange={handleAvatarFileChange}
+          onSubmit={handleAvatarSubmit}
+        />
+      )}
+
+      {isLogoutConfirmOpen && (
+        <LogoutConfirmDialog
+          onCancel={closeLogoutDialog}
+          onConfirm={handleLogout}
+          isProcessing={isLoggingOut}
+          errorMessage={logoutError}
         />
       )}
     </div>
@@ -480,4 +695,114 @@ async function readFileAsDataUrl(file: File) {
     reader.readAsDataURL(file);
   });
 }
+interface AvatarDialogProps {
+  avatarState: AvatarUploadState;
+  onClose: () => void;
+  onFileChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+}
 
+function AvatarDialog({ avatarState, onClose, onFileChange, onSubmit }: AvatarDialogProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={onClose} />
+      <div className="relative z-10 w-full max-w-md rounded-3xl border border-white/70 bg-white/95 p-6 shadow-2xl transition dark:border-zinc-700 dark:bg-zinc-900/90">
+        <div className="mb-4 flex items-center justify-between">
+          <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">更换头像</span>
+          <button
+            type="button"
+            onClick={onClose}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-transparent bg-zinc-100 text-zinc-600 transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+            aria-label="关闭头像弹窗"
+          >
+            ✕
+          </button>
+        </div>
+
+        <form className="flex flex-col gap-5" onSubmit={onSubmit}>
+          <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/80 p-6 text-center text-sm text-zinc-500 transition hover:border-zinc-400 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/60 dark:text-zinc-400 dark:hover:border-zinc-500">
+            <span>支持 JPG、PNG、WebP 等常见格式</span>
+            <span className="rounded-full bg-zinc-900 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white dark:bg-zinc-100 dark:text-zinc-900">
+              点击或拖拽图片到此处
+            </span>
+            <input type="file" accept="image/*" className="hidden" onChange={onFileChange} />
+          </label>
+
+          {avatarState.imagePreview && (
+            <div className="w-full">
+              <span className="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">预览</span>
+              <div className="flex items-center justify-center">
+                <Image
+                  src={avatarState.imagePreview}
+                  alt="新的头像预览"
+                  width={120}
+                  height={120}
+                  className="h-28 w-28 rounded-full object-cover shadow-lg"
+                />
+              </div>
+            </div>
+          )}
+
+          {avatarState.error && <span className="text-sm text-red-500">{avatarState.error}</span>}
+
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-700"
+            >
+              取消
+            </button>
+            <button
+              type="submit"
+              disabled={avatarState.isSubmitting}
+              className="rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-700 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+            >
+              {avatarState.isSubmitting ? "保存中..." : "保存头像"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+interface LogoutConfirmDialogProps {
+  isProcessing: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+  errorMessage?: string;
+}
+
+function LogoutConfirmDialog({ isProcessing, onCancel, onConfirm, errorMessage }: LogoutConfirmDialogProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+      <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" aria-hidden="true" onClick={onCancel} />
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-white/70 bg-white/95 p-6 shadow-2xl transition dark:border-zinc-700 dark:bg-zinc-900/90">
+        <div className="mb-4">
+          <span className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">退出登录</span>
+        </div>
+        <p className="mb-6 text-sm text-zinc-600 dark:text-zinc-300">确定要退出登录吗？当前未保存的数据将丢失。</p>
+        {errorMessage && <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-600 dark:bg-red-500/10 dark:text-red-200">{errorMessage}</div>}
+        <div className="flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={isProcessing}
+            className="rounded-full border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-600 transition hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-zinc-600 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:focus-visible:ring-zinc-700"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={isProcessing}
+            className="rounded-full bg-red-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-red-600 disabled:cursor-not-allowed disabled:opacity-60 dark:bg-red-500 dark:hover:bg-red-600"
+          >
+            {isProcessing ? "退出中..." : "确认退出"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
