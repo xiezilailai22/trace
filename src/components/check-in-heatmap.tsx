@@ -113,6 +113,13 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
     });
   }, [cellMap, displayStart, displayEnd]);
 
+  const displayMonthMarkers = useMemo(() => {
+    if (isYearSelected) {
+      return monthMarkers;
+    }
+    return monthMarkers.slice(1);
+  }, [isYearSelected, monthMarkers]);
+
   const heatmapWidth = useMemo(() => {
     const innerWidth = totalWeeks * CELL_WITH_GAP;
     const gapBetweenLabelsAndGrid = 8; // gap-2 => 0.5rem => 8px
@@ -155,7 +162,7 @@ export default function CheckInHeatmap({ summaries }: CheckInHeatmapProps) {
 
           <div className="flex flex-col gap-3">
             <div className="w-full overflow-x-auto md:overflow-visible">
-              <MonthLabels markers={monthMarkers} weekCount={totalWeeks} />
+              <MonthLabels markers={displayMonthMarkers} weekCount={totalWeeks} />
             </div>
             <div className="flex gap-2 overflow-x-auto md:overflow-visible">
               <DayLabels />
