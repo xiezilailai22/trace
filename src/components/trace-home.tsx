@@ -322,7 +322,7 @@ export default function TraceHome() {
     <div className="min-h-screen bg-gradient-to-br from-zinc-50 via-white to-zinc-100 dark:from-black dark:via-zinc-900 dark:to-black">
       <header className="sticky top-0 z-40 border-b border-white/60 bg-white/80 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/70">
         <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
             <span className="relative inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-zinc-900 via-zinc-700 to-zinc-500 text-white shadow-md dark:from-zinc-100 dark:via-zinc-300 dark:to-zinc-500 dark:text-zinc-900">
               <Image src={product.logo} alt="Trace" width={28} height={28} className="h-7 w-7" />
             </span>
@@ -335,49 +335,58 @@ export default function TraceHome() {
               </span>
             </div>
           </div>
-          <div className="relative">
+          <div className="flex items-center gap-6">
             <button
               type="button"
-              ref={avatarButtonRef}
-              aria-haspopup="menu"
-              aria-expanded={isAvatarMenuOpen}
-              onClick={() => setIsAvatarMenuOpen((prev) => !prev)}
-              className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-transparent bg-zinc-100 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+              onClick={openCheckInModal}
+              className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-500 px-6 py-3 text-sm font-semibold tracking-wide text-white shadow-lg transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 dark:from-zinc-100 dark:via-zinc-200 dark:to-zinc-400 dark:text-zinc-900 dark:hover:scale-105"
             >
-              <Image src={avatarSrc} alt={profile.name} width={40} height={40} className="h-10 w-10 object-cover" />
+              打卡
             </button>
-            {isAvatarMenuOpen ? (
-              <div
-                ref={menuRef}
-                role="menu"
-                className="absolute right-0 mt-3 w-48 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-lg ring-1 ring-black/5 dark:border-zinc-800 dark:bg-zinc-900/90"
+            <div className="relative">
+              <button
+                type="button"
+                ref={avatarButtonRef}
+                aria-haspopup="menu"
+                aria-expanded={isAvatarMenuOpen}
+                onClick={() => setIsAvatarMenuOpen((prev) => !prev)}
+                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-transparent bg-zinc-100 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
               >
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                  onClick={() => {
-                    closeAvatarMenu();
-                    resetAvatarState();
-                    setIsAvatarDialogOpen(true);
-                  }}
+                <Image src={avatarSrc} alt={profile.name} width={40} height={40} className="h-10 w-10 object-cover" />
+              </button>
+              {isAvatarMenuOpen ? (
+                <div
+                  ref={menuRef}
+                  role="menu"
+                  className="absolute right-0 mt-3 w-48 rounded-2xl border border-white/80 bg-white/95 p-2 shadow-lg ring-1 ring-black/5 dark:border-zinc-800 dark:bg-zinc-900/90"
                 >
-                  更换头像
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-red-500 transition hover:bg-red-50 dark:hover:bg-red-500/10"
-                  onClick={() => {
-                    closeAvatarMenu();
-                    setLogoutError(undefined);
-                    setIsLogoutConfirmOpen(true);
-                  }}
-                >
-                  退出登录
-                </button>
-              </div>
-            ) : null}
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                    onClick={() => {
+                      closeAvatarMenu();
+                      resetAvatarState();
+                      setIsAvatarDialogOpen(true);
+                    }}
+                  >
+                    更换头像
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm text-red-500 transition hover:bg-red-50 dark:hover:bg-red-500/10"
+                    onClick={() => {
+                      closeAvatarMenu();
+                      setLogoutError(undefined);
+                      setIsLogoutConfirmOpen(true);
+                    }}
+                  >
+                    退出登录
+                  </button>
+                </div>
+              ) : null}
+            </div>
           </div>
         </div>
       </header>
