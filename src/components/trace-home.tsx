@@ -391,30 +391,8 @@ export default function TraceHome() {
         </div>
       </header>
 
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10 lg:flex-row lg:py-12">
-        <aside className="flex w-full max-w-sm flex-col gap-6 rounded-3xl border border-white/70 bg-white/80 p-8 shadow-[0_30px_60px_-45px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800/60 dark:bg-zinc-900/60">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <span className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-white/80 bg-zinc-100 shadow-lg dark:border-zinc-700 dark:bg-zinc-800">
-              <Image src={avatarSrc} alt={profile.name} width={120} height={120} className="h-28 w-28 object-cover" />
-            </span>
-            <div className="flex flex-col gap-1">
-              <span className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                {profile.name}
-              </span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400">{profile.title}</span>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={openCheckInModal}
-            className="inline-flex items-center justify-center rounded-full bg-gradient-to-r from-zinc-900 via-zinc-700 to-zinc-500 px-6 py-3 text-sm font-semibold tracking-wide text-white shadow-lg transition hover:scale-105 focus:outline-none focus-visible:ring-2 focus-visible:ring-zinc-500 dark:from-zinc-100 dark:via-zinc-200 dark:to-zinc-400 dark:text-zinc-900 dark:hover:scale-105"
-          >
-            打卡
-          </button>
-        </aside>
-
-        <section className="flex flex-1 flex-col gap-10">
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-10 px-6 py-10 lg:py-12">
+        <section className="flex flex-col gap-10">
           <div className="grid gap-6 rounded-3xl border border-white/70 bg-white/85 p-8 shadow-[0_30px_60px_-40px_rgba(15,23,42,0.4)] backdrop-blur dark:border-zinc-800/70 dark:bg-zinc-900/65">
             <div className="grid gap-4 rounded-2xl border border-zinc-200 bg-white/80 p-6 dark:border-zinc-700 dark:bg-zinc-900/60 lg:grid-cols-3">
               {statsConfig.map(({ key, label, formatter }) => (
